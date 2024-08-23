@@ -5,7 +5,7 @@ from biom import load_table
 from unifrac import unweighted
 
 
-def get_table_data(table, max_bp):
+def get_table_data(table, max_bp, encoding_on_nuc):
     o_ids = tf.constant(table.ids(axis="observation"))
 
     table = table.transpose()
@@ -20,15 +20,26 @@ def get_table_data(table, max_bp):
     table_data = tf.sparse.reorder(table_data)
 
     table_dataset = tf.data.Dataset.from_tensor_slices(table_data)
-    sequence_tokenizer = tf.keras.layers.TextVectorization(
-        max_tokens=8,
-        split="character",
-        output_mode="int",
-        output_sequence_length=max_bp,
-        name="tokenizer",
-        vocabulary=["", "[UNK]", "g", "a", "t", "c"],
-    )
-    # sequence_tokenizer.adapt(o_ids[:10])
+
+    if encoding_on_nuc:
+        # Tokenize sequences using nucleotide characters
+        sequence_tokenizer = tf.keras.layers.TextVectorization(
+            max_tokens=8,
+            split="character",
+            output_mode="int",
+            output_sequence_length=max_bp,
+            name="tokenizer",
+            vocabulary=["", "[UNK]", "g", "a", "t", "c"],
+        )
+    else:
+        # Tokenize sequences using observation IDs
+        sequence_tokenizer = tf.keras.layers.TextVectorization(
+            max_tokens=len(o_ids) + 2,  # +2 for the "" and "[UNK]"
+            output_mode="int",
+            output_sequence_length=max_bp,
+            name="tokenizer",
+            vocabulary=["", "[UNK]"] + o_ids.numpy().tolist(),
+        )
 
     return (o_ids, table_dataset, sequence_tokenizer)
 
@@ -141,6 +152,7 @@ def load_data(
     metadata_path=None,
     metadata_col=None,
     missing_samples_flag=None,
+    encoding_on_nuc=False,
 ):
     if isinstance(table_path, str):
         table = load_table(table_path)
@@ -152,7 +164,7 @@ def load_data(
 
     if tree_path:
         sample_ids = table.ids(axis="sample")
-        o_ids, table_dataset, sequence_tokenizer = get_table_data(table, max_bp)
+        o_ids, table_dataset, sequence_tokenizer = get_table_data(table, max_bp, encoding_on_nuc)
         unifrac_dataset = get_unifrac_dataset(table_path, tree_path)
         training_dataset, validation_dataset = batch_dataset(
             table_dataset,
@@ -179,7 +191,7 @@ def load_data(
         table, metadata = validate_metadata(table, metadata, missing_samples_flag)
         sample_ids = table.ids(axis="sample")
         metadata = filter_and_reorder(metadata, sample_ids)
-        o_ids, table_dataset, sequence_tokenizer = get_table_data(table.copy(), max_bp)
+        o_ids, table_dataset, sequence_tokenizer = get_table_data(table.copy(), max_bp, encoding_on_nuc)
 
         regression_data = extract_col(metadata, metadata_col, output_dtype=np.float32)
         regression_dataset, mean, std = convert_to_normalized_dataset(
