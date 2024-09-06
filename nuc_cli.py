@@ -58,6 +58,7 @@ aam_globals = _aam_globals()
 @click.option("--p-lr", default=0.01, show_default=True, type=float)
 @click.option("--p-report-back-after", default=5, show_default=True, type=int)
 @click.option("--p-output-dir", required=True)
+@click.option("--p-nuc-encoding", default=True, show_default=True, type=bool)
 def unifrac_regressor(
     i_table_path: str,
     i_tree_path: str,
@@ -79,6 +80,7 @@ def unifrac_regressor(
     p_lr: float,
     p_report_back_after: int,
     p_output_dir: str,
+    p_nuc_encoding: bool,
 ):
     if not os.path.exists(p_output_dir):
         os.makedirs(p_output_dir)
@@ -93,6 +95,7 @@ def unifrac_regressor(
         i_max_bp,
         p_batch_size,
         tree_path=i_tree_path,
+        nuc_encoding=p_nuc_encoding,
     )
     model = UnifracModel(
         p_ff_d_model,
@@ -177,6 +180,7 @@ def unifrac_regressor(
 @click.option("--p-base-model-path", required=True, type=click.Path(exists=True))
 @click.option("--p-output-dir", required=True)
 @click.option("--p-tensorboard", default=False, show_default=True, type=bool)
+@click.option("--p-nuc-encoding", default=True, show_default=True, type=bool)
 def transfer_learn_fit_regressor(
     i_table_path: str,
     i_metadata_path: str,
@@ -201,6 +205,7 @@ def transfer_learn_fit_regressor(
     p_base_model_path: str,
     p_output_dir: str,
     p_tensorboard: bool,
+    p_nuc_encoding: bool,
 ):
     if not os.path.exists(p_output_dir):
         os.makedirs(p_output_dir)
@@ -219,6 +224,7 @@ def transfer_learn_fit_regressor(
         metadata_col=i_metadata_col,
         missing_samples_flag=p_missing_samples,
         train_percent=0.8,
+        nuc_encoding=p_nuc_encoding,
     )
 
     train_size = data_obj["training_dataset"].cardinality().numpy()
